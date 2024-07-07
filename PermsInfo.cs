@@ -6,8 +6,8 @@ using Oxide.Core.Plugins;
 
 namespace Oxide.Plugins
 {
-    [Info("PermsInfo", "TheProfessor", "0.5.0")]
-    [Description("A plugin to show and backup permissions for groups and users.")]
+    [Info("PermsInfo", "TheProfessor", "0.5.1")]
+    [Description("A plugin to show and backup permissions for groups and users, including group membership.")]
 
     public class PermsInfo : RustPlugin
     {
@@ -22,11 +22,11 @@ namespace Oxide.Plugins
         {
             if (!player.IsAdmin)
             {
-                SendReply(player, "You are not authorized to use this command.");
+                SendReply(player, Lang("NotAuthorized", player.UserIDString));
                 return;
             }
 
-            ShowPermissions();
+            ShowPermissions(true);
         }
 
         [ConsoleCommand("permsshow")]
@@ -34,29 +34,35 @@ namespace Oxide.Plugins
         {
             if (!arg.IsAdmin)
             {
-                arg.ReplyWith("You are not authorized to use this command.");
+                arg.ReplyWith(Lang("NotAuthorized", arg.Connection?.userid.ToString()));
                 return;
             }
 
-            ShowPermissions();
+            ShowPermissions(true);
         }
 
-        private void ShowPermissions()
+        private void ShowPermissions(bool showInConsole)
         {
-            Puts("Permissions for groups:");
+            Puts(Lang("ShowPermissions_Group"));
 
             var groups = permission.GetGroups();
             foreach (var group in groups)
             {
-                Puts($"Group: {group}");
+                Puts(string.Format(Lang("ShowPermissions_GroupItem"), group));
                 var groupPermissions = permission.GetGroupPermissions(group);
                 foreach (var perm in groupPermissions)
                 {
-                    Puts($"    {perm}");
+                    Puts(string.Format(Lang("ShowPermissions_PermissionItem"), perm));
+                }
+                var groupMembers = permission.GetUsersInGroup(group);
+                foreach (var member in groupMembers)
+                {
+                    string userName = covalence.Players.FindPlayerById(member)?.Name ?? member;
+                    Puts(showInConsole ? $"    Member: {member} ({userName})" : $"    Member: {member}");
                 }
             }
 
-            Puts("Permissions for users:");
+            Puts(Lang("ShowPermissions_User"));
 
             var users = new HashSet<string>();
             var permissions = permission.GetPermissions();
@@ -72,11 +78,11 @@ namespace Oxide.Plugins
             foreach (var user in users)
             {
                 string userName = covalence.Players.FindPlayerById(user)?.Name ?? user;
-                Puts($"User: {user} ({userName})");
+                Puts(showInConsole ? string.Format(Lang("ShowPermissions_UserItem"), user, userName) : string.Format(Lang("ShowPermissions_UserItem"), user, user));
                 var userPermissions = permission.GetUserPermissions(user);
                 foreach (var perm in userPermissions)
                 {
-                    Puts($"    {perm}");
+                    Puts(string.Format(Lang("ShowPermissions_UserPermissionItem"), perm));
                 }
             }
         }
@@ -86,7 +92,7 @@ namespace Oxide.Plugins
         {
             if (!player.IsAdmin)
             {
-                SendReply(player, "You are not authorized to use this command.");
+                SendReply(player, Lang("NotAuthorized", player.UserIDString));
                 return;
             }
 
@@ -98,7 +104,7 @@ namespace Oxide.Plugins
         {
             if (!arg.IsAdmin)
             {
-                arg.ReplyWith("You are not authorized to use this command.");
+                arg.ReplyWith(Lang("NotAuthorized", arg.Connection?.userid.ToString()));
                 return;
             }
 
@@ -116,6 +122,14 @@ namespace Oxide.Plugins
                 foreach (var perm in groupPermissions)
                 {
                     backupCommands.Add($"o.grant group {group} {perm}");
+                }
+                var groupMembers = permission.GetUsersInGroup(group);
+                foreach (var member in groupMembers)
+                {
+                    // Extracting only the SteamID from the member string and using it in the command
+                    // Assuming 'member' is in the format "steamID (username)" as shown in your examples.
+                    var steamID = member.Split(' ')[0]; // This splits the string and takes the first part before any space
+                    backupCommands.Add($"o.group add {steamID} {group}");
                 }
             }
 
@@ -144,17 +158,35 @@ namespace Oxide.Plugins
 
             foreach (var cmd in backupCommands)
             {
-                Puts(cmd);
+                Puts(cmd);  // Only outputting to console for visibility
             }
 
+            var message = string.Format(Lang("BackupCompleted"), backupFilePath);
             if (player != null)
             {
-                SendReply(player, $"Backup completed. Commands written to {backupFilePath}");
+                SendReply(player, message);
             }
             else
             {
-                Puts($"Backup completed. Commands written to {backupFilePath}");
+                Puts(message);
             }
+        }
+
+        private string Lang(string key, string userId = null) => lang.GetMessage(key, this, userId);
+
+        protected override void LoadDefaultMessages()
+        {
+            lang.RegisterMessages(new Dictionary<string, string>
+            {
+                ["NotAuthorized"] = "You are not authorized to use this command.",
+                ["ShowPermissions_Group"] = "Permissions for groups:",
+                ["ShowPermissions_GroupItem"] = "Group: {0}",
+                ["ShowPermissions_PermissionItem"] = "    {0}",
+                ["ShowPermissions_User"] = "Permissions for users:",
+                ["ShowPermissions_UserItem"] = "User: {0} ({1})",
+                ["ShowPermissions_UserPermissionItem"] = "    {0}",
+                ["BackupCompleted"] = "Backup completed. Commands written to {0}"
+            }, this);
         }
     }
 }
