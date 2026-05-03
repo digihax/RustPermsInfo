@@ -26,7 +26,7 @@ namespace Oxide.Plugins
                 return;
             }
 
-            ShowPermissions(true);
+            ShowPermissions(player, false);
         }
 
         [ConsoleCommand("permsshow")]
@@ -38,31 +38,31 @@ namespace Oxide.Plugins
                 return;
             }
 
-            ShowPermissions(true);
+            ShowPermissions(null, true);
         }
 
-        private void ShowPermissions(bool showInConsole)
+        private void ShowPermissions(BasePlayer player = null, bool showNames = true)
         {
-            Puts(Lang("ShowPermissions_Group"));
+            WriteOutput(player, Lang("ShowPermissions_Group"));
 
             var groups = permission.GetGroups();
             foreach (var group in groups)
             {
-                Puts(string.Format(Lang("ShowPermissions_GroupItem"), group));
+                WriteOutput(player, string.Format(Lang("ShowPermissions_GroupItem"), group));
                 var groupPermissions = permission.GetGroupPermissions(group);
                 foreach (var perm in groupPermissions)
                 {
-                    Puts(string.Format(Lang("ShowPermissions_PermissionItem"), perm));
+                    WriteOutput(player, string.Format(Lang("ShowPermissions_PermissionItem"), perm));
                 }
                 var groupMembers = permission.GetUsersInGroup(group);
                 foreach (var member in groupMembers)
                 {
                     string userName = covalence.Players.FindPlayerById(member)?.Name ?? member;
-                    Puts(showInConsole ? $"    Member: {member} ({userName})" : $"    Member: {member}");
+                    WriteOutput(player, showNames ? $"    Member: {member} ({userName})" : $"    Member: {member}");
                 }
             }
 
-            Puts(Lang("ShowPermissions_User"));
+            WriteOutput(player, Lang("ShowPermissions_User"));
 
             var users = new HashSet<string>();
             var permissions = permission.GetPermissions();
@@ -78,11 +78,11 @@ namespace Oxide.Plugins
             foreach (var user in users)
             {
                 string userName = covalence.Players.FindPlayerById(user)?.Name ?? user;
-                Puts(showInConsole ? string.Format(Lang("ShowPermissions_UserItem"), user, userName) : string.Format(Lang("ShowPermissions_UserItem"), user, user));
+                WriteOutput(player, showNames ? string.Format(Lang("ShowPermissions_UserItem"), user, userName) : string.Format(Lang("ShowPermissions_UserItem"), user, user));
                 var userPermissions = permission.GetUserPermissions(user);
                 foreach (var perm in userPermissions)
                 {
-                    Puts(string.Format(Lang("ShowPermissions_UserPermissionItem"), perm));
+                    WriteOutput(player, string.Format(Lang("ShowPermissions_UserPermissionItem"), perm));
                 }
             }
         }
@@ -129,7 +129,7 @@ namespace Oxide.Plugins
                     // Extracting only the SteamID from the member string and using it in the command
                     // Assuming 'member' is in the format "steamID (username)" as shown in your examples.
                     var steamID = member.Split(' ')[0]; // This splits the string and takes the first part before any space
-                    backupCommands.Add($"o.group add {steamID} {group}");
+                    backupCommands.Add($"o.usergroup add {steamID} {group}");
                 }
             }
 
@@ -153,8 +153,10 @@ namespace Oxide.Plugins
                 }
             }
 
-            var backupFilePath = Path.Combine(Interface.Oxide.DataDirectory, "permsbackup.txt");
+            var backupFilePath = Path.Combine(Interface.Oxide.DataDirectory, $"permsbackup-{DateTime.UtcNow:yyyyMMdd-HHmmss}.txt");
+            var latestBackupFilePath = Path.Combine(Interface.Oxide.DataDirectory, "permsbackup.txt");
             File.WriteAllLines(backupFilePath, backupCommands);
+            File.WriteAllLines(latestBackupFilePath, backupCommands);
 
             foreach (var cmd in backupCommands)
             {
@@ -162,6 +164,18 @@ namespace Oxide.Plugins
             }
 
             var message = string.Format(Lang("BackupCompleted"), backupFilePath);
+            if (player != null)
+            {
+                SendReply(player, message);
+            }
+            else
+            {
+                Puts(message);
+            }
+        }
+
+        private void WriteOutput(BasePlayer player, string message)
+        {
             if (player != null)
             {
                 SendReply(player, message);
