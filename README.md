@@ -1,5 +1,17 @@
 # RustPermsInfo
 
+## Maintenance status
+
+**Archived — November 2026.** No active maintenance or current compatibility
+support is planned. The source and commit history remain available under the
+existing GPL-3.0 license.
+
+This Oxide/uMod permissions plugin is retained for historical reference. Current
+server/plugin compatibility and restore behavior have not been revalidated.
+
+Review it in a disposable test environment before reuse. This archive is part of
+its development history, not a recommendation for new production deployments.
+
 RustPermsInfo is an Oxide/uMod plugin for Rust server admins. It prints current permissions and writes restore-friendly permission backup commands to files in the Oxide data directory.
 
 The plugin is useful when you want a quick snapshot of group permissions, user permissions, and group membership before changing plugins, migrating servers, or troubleshooting access.
